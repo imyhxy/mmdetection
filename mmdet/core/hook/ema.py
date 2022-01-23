@@ -32,11 +32,13 @@ class BaseEMAHook(Hook):
     def __init__(self,
                  momentum=0.0002,
                  interval=1,
+                 updates=0,
                  skip_buffers=False,
                  resume_from=None,
                  momentum_fun=None):
         assert 0 < momentum < 1
         self.momentum = momentum
+        self.updates = updates
         self.skip_buffers = skip_buffers
         self.interval = interval
         self.checkpoint = resume_from
@@ -64,15 +66,16 @@ class BaseEMAHook(Hook):
         if self.checkpoint is not None:
             runner.resume(self.checkpoint)
 
-    def get_momentum(self, runner):
-        return self.momentum_fun(runner.iter) if self.momentum_fun else \
+    def get_momentum(self):
+        return self.momentum_fun(self.updates) if self.momentum_fun else \
                         self.momentum
 
     def after_train_iter(self, runner):
         """Update ema parameter every self.interval iterations."""
         if (runner.iter + 1) % self.interval != 0:
             return
-        momentum = self.get_momentum(runner)
+        self.updates += 1
+        momentum = self.get_momentum()
         for name, parameter in self.model_parameters.items():
             # exclude num_tracking
             if parameter.dtype.is_floating_point:
